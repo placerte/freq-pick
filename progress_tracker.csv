@@ -1,0 +1,29 @@
+id,section,requirement,status,implementation,notes
+D-260220_1-1,Locked decision,Manual-only v0.1,implemented,src/freq_pick/mpl_ui.py; src/freq_pick/core.py,[D-260220_1-1] manual selection only
+D-260220_1-2,Locked decision,Spectrum-agnostic (one spectrum),implemented,src/freq_pick/core.py,[D-260220_1-2] Spectrum dataclass
+D-260220_1-3,Locked decision,Inputs Spectrum dataclass,implemented,src/freq_pick/core.py,[D-260220_1-3] Spectrum
+D-260220_1-4,Locked decision,Outputs Selection dataclass,implemented,src/freq_pick/core.py,[D-260220_1-4] Selection
+D-260220_1-5,Locked decision,Snap max-in-window hybrid,implemented,src/freq_pick/core.py,[D-260220_1-5] effective_snap_hz + snap_index
+D-260220_1-6,Locked decision,UI interactions + keymap + visuals,implemented,src/freq_pick/mpl_ui.py,[D-260220_1-6] keymap + help + summary + rectangle
+D-260220_1-7,Locked decision,Artifacts PNG+JSON,implemented,src/freq_pick/artifacts.py,[D-260220_1-7] write_artifacts
+D-260220_1-8,Locked decision,Errors/edge cases,partial,src/freq_pick/core.py; src/freq_pick/cli.py,[D-260220_1-8] ValueError + cancel
+D-260220_1-8.1,Locked decision,Frequency view window,partial,src/freq_pick/core.py; src/freq_pick/mpl_ui.py,[D-260220_1-8.1] xlim + crop_to_xlim
+D-260220_1-9,Locked decision,Deps + CLI entry points,implemented,pyproject.toml; src/freq_pick/__main__.py; src/freq_pick/cli.py,[D-260220_1-9] numpy/matplotlib
+S-260220_1-1,Spec,Core API pick_freqs_matplotlib,implemented,src/freq_pick/core.py,[S-260220_1-1]
+S-260220_1-2,Spec,Rectangle selection max in rectangle,implemented,src/freq_pick/mpl_ui.py,[S-260220_1-2]
+S-260220_1-3,Spec,Selection toggling by index,implemented,src/freq_pick/core.py; src/freq_pick/mpl_ui.py,[S-260220_1-3]
+S-260220_1-4,Spec,Artifacts PNG+JSON,implemented,src/freq_pick/artifacts.py,[S-260220_1-4]
+S-260220_1-5,Spec,CLI loads npz and writes artifacts,implemented,src/freq_pick/cli.py,[S-260220_1-5]
+S-260220_1-6,Spec,JSON schema fields,implemented,src/freq_pick/artifacts.py,[S-260220_1-6]
+I-260220_1-1,Implementation plan,Project skeleton,implemented,src/freq_pick/*; tests/,[I-260220_1-1]
+I-260220_1-2,Implementation plan,Validation rules,implemented,src/freq_pick/core.py,[I-260220_1-2]
+I-260220_1-3,Implementation plan,Snap utilities + crop,implemented,src/freq_pick/core.py,[I-260220_1-3]
+I-260220_1-4,Implementation plan,Matplotlib events,implemented,src/freq_pick/mpl_ui.py,[I-260220_1-4]
+I-260220_1-5,Implementation plan,Overlays + summary,implemented,src/freq_pick/mpl_ui.py,[I-260220_1-5]
+I-260220_1-6,Implementation plan,Artifacts writer,implemented,src/freq_pick/artifacts.py,[I-260220_1-6]
+I-260220_1-7,Implementation plan,CLI behavior,implemented,src/freq_pick/cli.py,[I-260220_1-7]
+T-260220_1-1,Tests,Snap behavior,implemented,tests/test_snap.py,[T-260220_1-1]
+T-260220_1-2,Tests,Toggle by index,implemented,tests/test_toggle.py,[T-260220_1-2]
+T-260220_1-3,Tests,JSON schema fields,implemented,tests/test_artifacts.py,[T-260220_1-3]
+T-260220_1-4,Tests,Headless render,implemented,tests/test_headless_png.py,[T-260220_1-4]
+DoD-260220_1-1,Definition of Done,v0.1 items,partial,src/freq_pick/*; tests/*,[DoD-260220_1-1]
