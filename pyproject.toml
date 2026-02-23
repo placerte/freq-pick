@@ -1,6 +1,6 @@
 [project]
 name = "freq-pick"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -20,10 +20,19 @@ build-backend = "hatchling.build"
 packages = ["freq_pick"]
 sources = ["src"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/freq_pick/**",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
 [dependency-groups]
 dev = [
+    "produm>=0.1.2",
     "pytest>=9.0.2",
 ]

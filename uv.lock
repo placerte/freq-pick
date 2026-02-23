@@ -119,6 +119,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "produm" },
     { name = "pytest" },
 ]
 
@@ -129,7 +130,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.2" }]
+dev = [
+    { name = "produm", specifier = ">=0.1.2" },
+    { name = "pytest", specifier = ">=9.0.2" },
+]
 
 [[package]]
 name = "iniconfig"
@@ -306,6 +310,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pathspec"
+version = "1.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/36/e27608899f9b8d4dff0617b2d9ab17ca5608956ca44461ac14ac48b44015/pathspec-1.0.4.tar.gz", hash = "sha256:0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645", size = 131200, upload-time = "2026-01-27T03:59:46.938Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/3c/2c197d226f9ea224a9ab8d197933f9da0ae0aac5b6e0f884e2b8d9c8e9f7/pathspec-1.0.4-py3-none-any.whl", hash = "sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723", size = 55206, upload-time = "2026-01-27T03:59:45.137Z" },
+]
+
+[[package]]
 name = "pillow"
 version = "12.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -370,6 +383,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "produm"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pathspec" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/a9/b1bce11f2b9b17a5c01aed0eb5603a72a90545ba07b18fbe9e581282edd9/produm-0.1.2.tar.gz", hash = "sha256:b611d23e3a4e3a29db41a1c8840bf083da37bacf63e5c5a4c22e85dd8006e846", size = 6836, upload-time = "2025-12-10T12:47:21.152Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/9a/56f92a98c56eccd9353a78f87a8261de4c6e2f7891c02ce47451827cd777/produm-0.1.2-py3-none-any.whl", hash = "sha256:ac66e220a4f30d3a358d7150b23e950772d76e626342d384e62760687b9e9bce", size = 9571, upload-time = "2025-12-10T12:47:20.415Z" },
 ]
 
 [[package]]

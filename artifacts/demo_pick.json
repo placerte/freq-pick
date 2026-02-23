@@ -4,15 +4,13 @@
   "selected_hz": [
     25.0,
     60.0,
-    69.5,
-    120.0,
+    120.5,
     175.0
   ],
   "selected_idx": [
     50,
     120,
-    139,
-    240,
+    241,
     350
   ],
   "settings": {
@@ -25,7 +23,8 @@
       "clear": "c",
       "commit": "q",
       "delete_nearest": "x",
-      "help": "h"
+      "help": "h",
+      "toggle_scale": "l"
     },
     "user_snap_hz": 0.5,
     "xlim": [
