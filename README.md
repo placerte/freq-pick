@@ -8,7 +8,7 @@ artifacts capture the selection.
 ## Install
 
 ```bash
-uv sync
+uv add freq-pick
 ```
 
 ## API (primary)
@@ -87,9 +87,3 @@ JSON keys:
 - `settings`
 - `spectrum_meta`
 - `display_domain`
-
-## Development
-
-```bash
-uv run pytest
-```
