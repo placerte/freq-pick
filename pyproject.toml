@@ -1,6 +1,6 @@
 [project]
 name = "freq-pick"
-version = "0.1.3"
+version = "0.1.4"
 description = "Interactive frequency picker for a single spectrum"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -17,8 +17,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["freq_pick"]
-sources = ["src"]
+packages = ["src/freq_pick"]
 
 [tool.hatch.build.targets.sdist]
 include = [

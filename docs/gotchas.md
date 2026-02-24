@@ -1,78 +1,169 @@
-# gotchas.md
-# Packaging gotchas: “console script exists but import fails”
-# (for agents working on Python packaging + uv + hatchling)
+# Gotchas Log
 
-## Symptom pattern
-- A console script exists in `.venv/bin` (e.g., `freq-pick`)
-- But Python cannot import the module (e.g., `ModuleNotFoundError: No module named 'freq_pick'`)
+> Purpose: Failure-pattern database.
+> Style: Symptom → Diagnose → Fix → Prevention. Keep entries short and repo-agnostic.
+> Tags: Use lowercase, bracketed tags like `[python][packaging][sdist]`. Prefer *mechanism* tags.
 
-## Quick diagnostics (copy/paste)
-### 1) Are we using the expected interpreter / env?
-uv run python -c "import sys; print(sys.executable); print(sys.prefix)"
+---
 
-### 2) Is the distribution installed (metadata), even if the module is missing?
-uv run python -c "import importlib.metadata as m; print(m.version('freq-pick')); print(len(list(m.files('freq-pick') or [])))"
+## Index
 
-### 3) Does the module exist?
-uv run python -c "import importlib.util as u; print(u.find_spec('freq_pick'))"
+- **GOTCHA-001** — CLI exists but `import` fails — [python][packaging][sdist][entry-points][import]
+- **GOTCHA-003** — Wheel installs but `import` fails — [python][packaging][wheel][hatchling][src-layout]
+- **GOTCHA-002** — Frozen binary misses runtime import — [python][pyinstaller][packaging][hidden-import]
 
-Interpretation:
-- If `m.version(...)` works but `find_spec(...)` is None:
-  => The dist is installed, but the package files are not present in site-packages.
-- If `dist files count` is very small (~10–30):
-  => often only `.dist-info` got installed; code was missing from build artifact.
+---
 
-## Root cause (common)
-Wheel configuration does NOT automatically ensure the SDist includes package sources.
-- It’s possible to build/upload a wheel that contains `src/<pkg>/...`
-- while the sdist tarball accidentally omits `src/<pkg>/...`
+## Template (copy/paste)
 
-If downstream installs from sdist (or a direct `.tar.gz` URL), the install can succeed
-(metadata + entry points), but the package module won’t exist.
+```md
+## GOTCHA-XXX — <short title>
 
-## “Why is there a CLI but no module?”
-Console scripts are generated from dist metadata (entry points).
-If the module files are missing, the script still gets created, but it crashes at runtime.
+**Tags:** [domain][mechanism][tooling][os]  
+**Severity:** low|medium|high  
+**Detectability:** low|medium|high  
+**Last-seen:** YYYY-MM  
 
-## Specific gotcha: dependencies pinned to a tarball URL
-If a downstream project depends on:
-- `pkg @ https://files.pythonhosted.org/.../pkg-x.y.z.tar.gz`
+### Symptom
+- <what you observe>
 
-…then it’s explicitly sourcing from the sdist artifact.
-If that sdist is incomplete, imports will fail even if wheel settings look correct.
+### Diagnose
+```bash
+# 1) <first command>
+# 2) <second command>
+# 3) <third command>
+```
 
-## Corrective actions (hatchling + src layout)
-Add explicit SDist include rules:
+### Likely Cause
+- <1–2 lines>
 
-[tool.hatch.build.targets.sdist]
-include = [
-  "src/<package_name>/**",
-  "pyproject.toml",
-  "README.md",
-  "LICENSE",
-]
+### Fix
+- <bullet steps>
 
-Keep wheel config as needed:
+### Prevention
+- <short checklist>
 
-[tool.hatch.build.targets.wheel]
-packages = ["<package_name>"]
-sources = ["src"]
+### Notes
+- <optional, 1–3 bullets max>
+```
 
-## Pre-publish verification checklist
-Build:
-- uv build
+---
 
-Inspect SDist contents:
-- tar -tf dist/<name>-<ver>.tar.gz | rg "^src/<package_name>/"
+## GOTCHA-001 — CLI exists but `import` fails
 
-Smoke-test install from SDist (in a clean env):
-- python -m venv /tmp/testenv && source /tmp/testenv/bin/activate
-- pip install dist/<name>-<ver>.tar.gz
-- python -c "import <package_name>; import <package_name>.<submodule>; print('ok')"
+**Tags:** [python][packaging][sdist][entry-points][import]  
+**Severity:** medium  
+**Detectability:** high  
+**Last-seen:** 2026-02  
 
-## Workarounds (when you need it working immediately)
-- Use an editable install from local checkout:
-  uv add --editable ../<repo>
-- Or use a Git dependency:
-  uv add "<name> @ git+https://github.com/<org>/<repo>.git@<tag>"
+### Symptom
+- Console script exists in `.venv/bin/` (or `Scripts/` on Windows)
+- But:
+  - `ModuleNotFoundError: No module named '<import_name>'`
+  - or `find_spec('<import_name>')` returns `None`
 
+### Diagnose
+Replace:
+- `DIST_NAME` = distribution name (what pip installs)
+- `IMPORT_NAME` = Python import name
+
+```bash
+uv run python -c "import importlib.metadata as m; print(m.version('DIST_NAME'))"
+uv run python -c "import importlib.util as u; print(u.find_spec('IMPORT_NAME'))"
+uv run python -c "import importlib.metadata as m; print(len(list(m.files('DIST_NAME') or [])))"
+```
+
+### Likely Cause
+Broken or incomplete **sdist** (source distribution) missing `src/IMPORT_NAME/**`.
+
+### Fix
+- Ensure the build backend explicitly includes `src/IMPORT_NAME/**` in the **sdist**.
+- Rebuild.
+- Reinstall from the tarball in a clean venv.
+- Verify `python -c "import IMPORT_NAME"`.
+
+### Prevention
+1. `uv build`
+2. Inspect tarball contents
+3. Install from tarball in a clean venv
+4. `python -c "import IMPORT_NAME"`
+
+### Notes
+- Entry points live in distribution metadata; imports require the actual package files.
+- A suspiciously small `files(...)` count often means only `.dist-info` landed in site-packages.
+
+---
+
+## GOTCHA-002 — Frozen binary misses runtime import
+
+**Tags:** [python][pyinstaller][packaging][hidden-import]  
+**Severity:** high  
+**Detectability:** medium  
+**Last-seen:** 2026-02  
+
+### Symptom
+- `uv run <cli>` works
+- Frozen binary fails with `ModuleNotFoundError` for a dependency
+
+### Diagnose
+```bash
+# 1) Confirm dependency is importable in the build venv
+uv run python -c "import IMPORT_NAME; print(IMPORT_NAME.__file__)"
+
+# 2) Check whether PyInstaller bundled it
+uv run python -c "from PyInstaller.archive.readers import ZlibArchiveReader; z=ZlibArchiveReader('build/APP_NAME/PYZ-00.pyz'); print([n for n in z.toc if n.startswith('IMPORT_NAME')])"
+```
+
+### Likely Cause
+- Dependency is imported only at runtime (inside a function), so PyInstaller cannot discover it.
+
+### Fix
+- Add to the `.spec`:
+  - `from PyInstaller.utils.hooks import collect_submodules`
+  - `hiddenimports += collect_submodules("IMPORT_NAME")`
+- Rebuild: `uv run pyinstaller APP_NAME.spec`
+
+### Prevention
+- If an import is deferred or dynamic, declare it as a hidden import.
+- Add a post-build check that asserts required modules exist in the PYZ.
+
+---
+
+## GOTCHA-003 — Wheel installs but `import` fails
+
+**Tags:** [python][packaging][wheel][hatchling][src-layout]  \
+**Severity:** medium  \
+**Detectability:** high  \
+**Last-seen:** 2026-02  \
+
+### Symptom
+- Wheel installs, CLI entry point exists
+- But `import IMPORT_NAME` fails
+- Wheel contains only `.dist-info` without `IMPORT_NAME/**`
+
+### Diagnose
+Replace:
+- `WHEEL_PATH` = path to built wheel
+- `IMPORT_NAME` = Python import name
+
+```bash
+uv run python -c "import zipfile; z=zipfile.ZipFile('WHEEL_PATH'); print([n for n in z.namelist() if n.startswith('IMPORT_NAME/')])"
+```
+
+### Likely Cause
+- Hatchling wheel target mis-specified for `src/` layout, so packages are not included.
+
+### Fix
+- In `pyproject.toml`, set:
+  - `[tool.hatch.build.targets.wheel]`
+  - `packages = ["src/IMPORT_NAME"]`
+- Rebuild and reinstall from the wheel.
+
+### Prevention
+1. `uv build`
+2. Inspect wheel contents
+3. Install in a clean venv
+4. `python -c "import IMPORT_NAME"`
+
+### Notes
+- `sources = ["src"]` is not always enough for hatchling to find packages.
