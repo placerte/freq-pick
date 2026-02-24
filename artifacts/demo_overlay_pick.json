@@ -1,0 +1,35 @@
+{
+  "display_domain": "dB",
+  "schema_version": "1",
+  "selected_hz": [
+    60.0,
+    120.0,
+    175.0
+  ],
+  "selected_idx": [
+    120,
+    240,
+    350
+  ],
+  "settings": {
+    "crop_to_xlim": true,
+    "df_hz": 0.5,
+    "effective_snap_hz": 1.5,
+    "modifier": "shift",
+    "picker_keymap": {
+      "cancel": "escape",
+      "clear": "c",
+      "commit": "q",
+      "delete_nearest": "x",
+      "help": "h",
+      "toggle_overlays": "o",
+      "toggle_scale": "l"
+    },
+    "user_snap_hz": 0.5,
+    "xlim": [
+      0.0,
+      200.0
+    ]
+  },
+  "spectrum_meta": {}
+}
