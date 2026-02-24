@@ -17,6 +17,7 @@ PICKER_KEYMAP = {
     "help": "h",
     "delete_nearest": "x",
     "toggle_scale": "l",
+    "toggle_overlays": "o",
 }
 
 
@@ -35,6 +36,46 @@ _DF_WARN_ABS_TOL = 1e-6
 
 class PickerCancelled(Exception):
     """Raised when the user cancels the picker UI."""
+
+
+@dataclass(frozen=True)
+class OverlayContext:
+    """Optional context overlays aligned to the spectrum bins."""
+
+    mean: np.ndarray | None = None
+    median: np.ndarray | None = None
+    p25: np.ndarray | None = None
+    p75: np.ndarray | None = None
+    p10: np.ndarray | None = None
+    p90: np.ndarray | None = None
+
+    def has_any(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.mean,
+                self.median,
+                self.p25,
+                self.p75,
+                self.p10,
+                self.p90,
+            )
+        )
+
+    def slice_view(self, start: int, stop: int) -> "OverlayContext":
+        def slice_array(arr: np.ndarray | None) -> np.ndarray | None:
+            if arr is None:
+                return None
+            return arr[start:stop]
+
+        return OverlayContext(
+            mean=slice_array(self.mean),
+            median=slice_array(self.median),
+            p25=slice_array(self.p25),
+            p75=slice_array(self.p75),
+            p10=slice_array(self.p10),
+            p90=slice_array(self.p90),
+        )
 
 
 @dataclass
@@ -105,6 +146,31 @@ def validate_spectrum(spectrum: Spectrum) -> None:
         raise ValueError("f_hz must be strictly increasing.")
 
 
+def validate_context(f_hz: np.ndarray, context: OverlayContext | None) -> None:
+    """Validate optional context overlays against f_hz."""
+    if context is None or not context.has_any():
+        return
+
+    def check_array(name: str, arr: np.ndarray | None) -> None:
+        if arr is None:
+            return
+        if not isinstance(arr, np.ndarray):
+            raise ValueError(f"{name} must be a numpy.ndarray.")
+        if arr.ndim != 1:
+            raise ValueError(f"{name} must be a 1D array.")
+        if arr.size != f_hz.size:
+            raise ValueError(
+                f"{name} must be the same length as f_hz ({arr.size} vs {f_hz.size})."
+            )
+
+    check_array("mean", context.mean)
+    check_array("median", context.median)
+    check_array("p25", context.p25)
+    check_array("p75", context.p75)
+    check_array("p10", context.p10)
+    check_array("p90", context.p90)
+
+
 def compute_df_hz(f_hz: np.ndarray) -> float:
     """Compute df_hz from spectrum bins. [I-260220_1-3]
 
@@ -173,7 +239,7 @@ def crop_to_window(
     f_hz: np.ndarray,
     mag: np.ndarray,
     xlim: tuple[float, float],
-) -> tuple[np.ndarray, np.ndarray, int]:
+) -> tuple[np.ndarray, np.ndarray, int, int]:
     """Crop spectrum to xlim window. [D-260220_1-8.1]"""
     fmin, fmax = xlim
     if fmin >= fmax:
@@ -184,7 +250,7 @@ def crop_to_window(
     if idx_lo == idx_hi:
         raise ValueError("xlim does not include any spectrum samples.")
 
-    return f_hz[idx_lo:idx_hi], mag[idx_lo:idx_hi], idx_lo
+    return f_hz[idx_lo:idx_hi], mag[idx_lo:idx_hi], idx_lo, idx_hi
 
 
 def _build_selection(
@@ -215,6 +281,7 @@ def pick_freqs_matplotlib(
     title: str | None = None,
     title_append: str | None = None,
     crop_to_xlim: bool = True,
+    context: OverlayContext | None = None,
 ) -> Selection:
     """Launch matplotlib picker and return a Selection. [S-260220_1-1]
 
@@ -228,6 +295,7 @@ def pick_freqs_matplotlib(
         title: Base plot title (optional).
         title_append: Text appended to title (optional).
         crop_to_xlim: If true, selection is limited to xlim window.
+        context: Optional display-only overlays aligned to spectrum bins.
 
     Raises:
         PickerCancelled: If the user cancels the UI.
@@ -240,13 +308,21 @@ def pick_freqs_matplotlib(
     if user_snap_hz <= 0:
         raise ValueError("user_snap_hz must be positive.")
 
+    validate_context(spectrum.f_hz, context)
+
     df_hz = compute_df_hz(spectrum.f_hz)
     snap_hz = effective_snap_hz(user_snap_hz, df_hz)
 
     if xlim is not None and crop_to_xlim:
-        f_view, mag_view, offset = crop_to_window(spectrum.f_hz, spectrum.mag, xlim)
+        f_view, mag_view, offset, idx_hi = crop_to_window(
+            spectrum.f_hz, spectrum.mag, xlim
+        )
+        context_view = (
+            context.slice_view(offset, idx_hi) if context is not None else None
+        )
     else:
         f_view, mag_view, offset = spectrum.f_hz, spectrum.mag, 0
+        context_view = context
 
     settings: dict[str, object] = {
         "user_snap_hz": user_snap_hz,
@@ -274,6 +350,7 @@ def pick_freqs_matplotlib(
         xlim=xlim,
         picker_keymap=PICKER_KEYMAP,
         original_offset=offset,
+        context=context_view,
     )
 
     if result.cancelled:

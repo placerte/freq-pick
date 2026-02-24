@@ -4,12 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable
+from typing import cast
 
 import numpy as np
 
 import matplotlib.pyplot as plt
+from matplotlib.artist import Artist
+from matplotlib.backend_bases import Event
+from matplotlib.backend_bases import KeyEvent
+from matplotlib.backend_bases import MouseButton
+from matplotlib.backend_bases import MouseEvent
+from matplotlib.figure import Figure
+from matplotlib.legend import Legend
+from matplotlib.lines import Line2D
+from matplotlib.text import Text
 from matplotlib.widgets import RectangleSelector
 
+from freq_pick.core import OverlayContext
 from freq_pick.core import toggle_index
 
 
@@ -19,7 +30,7 @@ class PickerResult:
 
     selected_idx: set[int]
     cancelled: bool
-    fig: plt.Figure
+    fig: Figure
 
 
 def _event_has_modifier(event_key: str | None, modifier: str) -> bool:
@@ -67,6 +78,7 @@ def run_picker(
     xlim: tuple[float, float] | None,
     picker_keymap: dict[str, str],
     original_offset: int = 0,
+    context: OverlayContext | None = None,
 ) -> PickerResult:
     """Matplotlib picker UI. [D-260220_1-6]"""
     fig, ax = plt.subplots()
@@ -76,14 +88,17 @@ def run_picker(
     if not np.isfinite(max_linear) or max_linear <= 0:
         max_linear = 1.0
 
-    def display_mag_for(domain: str) -> np.ndarray:
+    def convert_mag(values: np.ndarray, domain: str) -> np.ndarray:
         if domain == "linear":
             if display_domain == "linear":
-                return original_mag
-            return db_to_linear(original_mag, max_linear=1.0)
+                return values
+            return db_to_linear(values, max_linear=1.0)
         if display_domain == "linear":
-            return linear_to_db(original_mag, max_linear=max_linear)
-        return original_mag
+            return linear_to_db(values, max_linear=max_linear)
+        return values
+
+    def display_mag_for(domain: str) -> np.ndarray:
+        return convert_mag(original_mag, domain)
 
     current_mag = display_mag_for(current_domain)
     (spectrum_line,) = ax.plot(f_hz, current_mag, color="black", linewidth=1.0)
@@ -95,8 +110,14 @@ def run_picker(
         ax.set_xlim(xlim)
 
     selected_idx: set[int] = set()
-    line_artists: list[plt.Line2D] = []
-    label_artists: list[plt.Text] = []
+    line_artists: list[Line2D] = []
+    label_artists: list[Text] = []
+    context_artists: list[Artist] = []
+    legend_artist: Legend | None = None
+
+    overlay_context = context if context is not None else OverlayContext()
+    overlays_enabled = overlay_context.has_any()
+    overlays_visible = overlays_enabled
 
     help_lines = [
         f"{modifier}+drag: toggle max in rectangle",
@@ -105,6 +126,7 @@ def run_picker(
         f"{picker_keymap['clear']}: clear",
         f"{picker_keymap['delete_nearest']}: delete nearest",
         f"{picker_keymap['toggle_scale']}: toggle y scale",
+        f"{picker_keymap['toggle_overlays']}: toggle overlays",
         f"{picker_keymap['help']}: toggle help",
     ]
     help_text = ax.text(
@@ -147,7 +169,7 @@ def run_picker(
         "last_mouse_x": None,
     }
 
-    def update_overlays() -> None:
+    def update_selection_overlays() -> None:
         for artist in line_artists:
             artist.remove()
         for artist in label_artists:
@@ -182,12 +204,99 @@ def run_picker(
 
         fig.canvas.draw_idle()
 
+    def update_context_overlays() -> None:
+        nonlocal legend_artist
+        for artist in context_artists:
+            artist.remove()
+        context_artists.clear()
+        if legend_artist is not None:
+            legend_artist.remove()
+            legend_artist = None
+
+        if not overlays_enabled or not overlays_visible:
+            fig.canvas.draw_idle()
+            return
+
+        legend_handles: list[Artist] = []
+        legend_labels: list[str] = []
+
+        def add_line(values: np.ndarray | None, color: str, label: str) -> None:
+            if values is None:
+                return
+            display_values = convert_mag(values, current_domain)
+            (line,) = ax.plot(
+                f_hz,
+                display_values,
+                color=color,
+                linewidth=1.1,
+                alpha=0.9,
+                label=label,
+            )
+            context_artists.append(line)
+            legend_handles.append(line)
+            legend_labels.append(label)
+
+        def add_band(
+            low: np.ndarray | None,
+            high: np.ndarray | None,
+            color: str,
+            alpha: float,
+            label: str,
+        ) -> None:
+            if low is None or high is None:
+                return
+            low_display = convert_mag(low, current_domain)
+            high_display = convert_mag(high, current_domain)
+            band = ax.fill_between(
+                f_hz,
+                low_display,
+                high_display,
+                color=color,
+                alpha=alpha,
+                linewidth=0.0,
+            )
+            context_artists.append(band)
+            legend_handles.append(band)
+            legend_labels.append(label)
+
+        add_band(
+            overlay_context.p10,
+            overlay_context.p90,
+            color="tab:gray",
+            alpha=0.12,
+            label="p10-p90",
+        )
+        add_band(
+            overlay_context.p25,
+            overlay_context.p75,
+            color="tab:blue",
+            alpha=0.18,
+            label="p25-p75",
+        )
+        add_line(overlay_context.mean, color="tab:blue", label="mean")
+        add_line(overlay_context.median, color="tab:orange", label="median")
+
+        if legend_handles:
+            legend_artist = ax.legend(
+                handles=legend_handles,
+                labels=legend_labels,
+                loc="lower left",
+                bbox_to_anchor=(0.01, 0.01),
+                framealpha=0.9,
+                facecolor="white",
+                edgecolor="black",
+                fontsize=9,
+            )
+            legend_artist.set_zorder(10)
+
+        fig.canvas.draw_idle()
+
     def toggle_selected(view_idx: int) -> None:
         original_idx = view_idx + original_offset
         toggle_index(selected_idx, original_idx)
-        update_overlays()
+        update_selection_overlays()
 
-    def on_select(eclick: plt.MouseEvent, erelease: plt.MouseEvent) -> None:
+    def on_select(eclick: MouseEvent, erelease: MouseEvent) -> None:
         """Rectangle select max-in-rectangle. [S-260220_1-2]"""
         if not (
             _event_has_modifier(eclick.key, modifier)
@@ -212,26 +321,28 @@ def run_picker(
         view_idx = int(indices[int(np.argmax(local_mag))])
         toggle_selected(view_idx)
 
-    def on_motion(event: plt.MouseEvent) -> None:
-        if event.inaxes != ax:
+    def on_motion(event: object) -> None:
+        mouse_event = cast(MouseEvent, event)
+        if mouse_event.inaxes != ax:
             return
-        state["last_mouse_x"] = event.xdata
+        state["last_mouse_x"] = mouse_event.xdata
 
-    def on_key_press(event: plt.KeyEvent) -> None:
-        nonlocal current_domain, current_mag
-        if event.key == picker_keymap["commit"]:
+    def on_key_press(event: object) -> None:
+        nonlocal current_domain, current_mag, overlays_visible
+        key_event = cast(KeyEvent, event)
+        if key_event.key == picker_keymap["commit"]:
             state["done"] = True
             plt.close(fig)
             return
-        if event.key == picker_keymap["cancel"]:
+        if key_event.key == picker_keymap["cancel"]:
             state["cancelled"] = True
             plt.close(fig)
             return
-        if event.key == picker_keymap["clear"]:
+        if key_event.key == picker_keymap["clear"]:
             selected_idx.clear()
-            update_overlays()
+            update_selection_overlays()
             return
-        if event.key == picker_keymap["delete_nearest"]:
+        if key_event.key == picker_keymap["delete_nearest"]:
             if not selected_idx:
                 return
             target = state["last_mouse_x"]
@@ -243,25 +354,31 @@ def run_picker(
             nearest_view = min(view_indices, key=lambda idx: abs(f_hz[idx] - target))
             toggle_selected(nearest_view)
             return
-        if event.key == picker_keymap["help"]:
+        if key_event.key == picker_keymap["help"]:
             help_text.set_visible(not help_text.get_visible())
             fig.canvas.draw_idle()
             return
-        if event.key == picker_keymap["toggle_scale"]:
+        if key_event.key == picker_keymap["toggle_scale"]:
             current_domain = "linear" if current_domain == "dB" else "dB"
             current_mag = display_mag_for(current_domain)
             spectrum_line.set_ydata(current_mag)
             ax.relim()
             ax.autoscale_view()
             ax.set_ylabel(f"Magnitude ({current_domain})")
-            update_overlays()
+            update_selection_overlays()
+            update_context_overlays()
+            return
+        if key_event.key == picker_keymap["toggle_overlays"]:
+            if overlays_enabled:
+                overlays_visible = not overlays_visible
+                update_context_overlays()
             return
 
     selector = RectangleSelector(
         ax,
         on_select,
         useblit=False,
-        button=[1],
+        button=[MouseButton.LEFT],
         spancoords="data",
         interactive=False,
         props={"facecolor": "tab:blue", "alpha": 0.15, "edgecolor": "tab:blue"},
@@ -271,7 +388,8 @@ def run_picker(
     fig.canvas.mpl_connect("motion_notify_event", on_motion)
     fig.canvas.mpl_connect("key_press_event", on_key_press)
 
-    update_overlays()
+    update_selection_overlays()
+    update_context_overlays()
     plt.show(block=True)
 
     return PickerResult(

@@ -8,6 +8,7 @@ import sys
 
 import numpy as np
 
+from freq_pick.core import OverlayContext
 from freq_pick.core import PickerCancelled
 from freq_pick.core import Spectrum
 from freq_pick.core import pick_freqs_matplotlib
@@ -38,20 +39,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _load_npz(path: Path) -> tuple[np.ndarray, np.ndarray]:
+def _load_npz(path: Path) -> tuple[np.ndarray, np.ndarray, OverlayContext | None]:
     if not path.exists():
         raise ValueError(f"Input file does not exist: {path}")
     with np.load(path) as data:
         if "f_hz" not in data or "mag" not in data:
             raise ValueError("Input .npz must contain f_hz and mag arrays.")
-        return data["f_hz"], data["mag"]
+        overlays: dict[str, np.ndarray] = {}
+        for key in ("mean", "median", "p25", "p75", "p10", "p90"):
+            if key in data:
+                overlays[key] = data[key]
+        context = OverlayContext(**overlays) if overlays else None
+        return data["f_hz"], data["mag"], context
 
 
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point. [S-260220_1-5]"""
     args = _parse_args(argv)
     try:
-        f_hz, mag = _load_npz(args.input_path)
+        f_hz, mag, context = _load_npz(args.input_path)
         spectrum = Spectrum(f_hz=f_hz, mag=mag, display_domain=args.domain)
         selection = pick_freqs_matplotlib(
             spectrum,
@@ -61,6 +67,7 @@ def main(argv: list[str] | None = None) -> None:
             xlim=tuple(args.xlim) if args.xlim is not None else None,
             title=args.title,
             title_append=args.title_append,
+            context=context,
         )
         if selection.selected_idx:
             print(f"Selected {len(selection.selected_idx)} peaks.")

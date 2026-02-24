@@ -46,7 +46,10 @@ print(selection.selected_hz)
 - `c`: clear selection
 - `x`: delete nearest selected peak to cursor
 - `l`: toggle y scale (linear/dB)
+- `o`: toggle overlay context
 - `h`: toggle help overlay
+
+Overlays start visible when present and can be toggled on/off with `o`.
 
 ## CLI
 
@@ -63,6 +66,11 @@ uv run freq-pick \
 ```
 
 Input `.npz` must include `f_hz` and `mag` arrays.
+Optional context arrays (same length as `f_hz`) are loaded if present:
+
+- `mean`, `median`
+- `p25`, `p75`
+- `p10`, `p90`
 
 ## Artifacts
 
