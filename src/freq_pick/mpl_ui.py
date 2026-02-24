@@ -217,8 +217,8 @@ def run_picker(
             fig.canvas.draw_idle()
             return
 
-        legend_handles: list[Artist] = []
-        legend_labels: list[str] = []
+        legend_handles: list[Artist] = [spectrum_line]
+        legend_labels: list[str] = ["spectrum"]
 
         def add_line(values: np.ndarray | None, color: str, label: str) -> None:
             if values is None:
@@ -262,15 +262,15 @@ def run_picker(
         add_band(
             overlay_context.p10,
             overlay_context.p90,
-            color="tab:gray",
-            alpha=0.12,
+            color="tab:orange",
+            alpha=0.28,
             label="p10-p90",
         )
         add_band(
             overlay_context.p25,
             overlay_context.p75,
             color="tab:blue",
-            alpha=0.18,
+            alpha=0.32,
             label="p25-p75",
         )
         add_line(overlay_context.mean, color="tab:blue", label="mean")

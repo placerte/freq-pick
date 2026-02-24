@@ -4,6 +4,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
+import warnings
 
 from freq_pick.core import OverlayContext
 from freq_pick.core import Spectrum
@@ -33,7 +34,12 @@ def test_context_inputs_do_not_change_selection(monkeypatch) -> None:
 def test_context_missing_inputs_valid() -> None:
     f_hz = np.linspace(0.0, 10.0, 11)
     validate_context(f_hz, None)
-    validate_context(f_hz, OverlayContext())
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        validate_context(f_hz, OverlayContext())
+        assert any(
+            "OverlayContext provided" in str(warning.message) for warning in caught
+        )
 
 
 def test_context_length_mismatch_errors() -> None:
@@ -43,6 +49,44 @@ def test_context_length_mismatch_errors() -> None:
     try:
         validate_context(f_hz, context)
     except ValueError as exc:
-        assert "mean" in str(exc)
+        message = str(exc)
+        assert "mean" in message
+        assert "expected" in message
+        assert "got" in message
     else:
         raise AssertionError("Expected ValueError for mismatched overlay length.")
+
+
+def test_minimal_context_renders(monkeypatch) -> None:
+    f_hz = np.linspace(0.0, 10.0, 11)
+    mag = np.linspace(1.0, 2.0, 11)
+    context = OverlayContext(mean=mag)
+
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
+    from freq_pick import mpl_ui
+
+    result = mpl_ui.run_picker(
+        f_hz=f_hz,
+        mag=mag,
+        display_domain="linear",
+        modifier="shift",
+        effective_snap_hz=1.0,
+        title=None,
+        xlim=None,
+        picker_keymap={
+            "commit": "q",
+            "cancel": "escape",
+            "clear": "c",
+            "help": "h",
+            "delete_nearest": "x",
+            "toggle_scale": "l",
+            "toggle_overlays": "o",
+        },
+        original_offset=0,
+        context=context,
+    )
+
+    ax = result.fig.axes[0]
+    assert len(ax.lines) >= 2
+    plt.close(result.fig)

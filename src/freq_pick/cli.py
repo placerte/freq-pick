@@ -49,8 +49,10 @@ def _load_npz(path: Path) -> tuple[np.ndarray, np.ndarray, OverlayContext | None
         for key in ("mean", "median", "p25", "p75", "p10", "p90"):
             if key in data:
                 overlays[key] = data[key]
-        context = OverlayContext(**overlays) if overlays else None
-        return data["f_hz"], data["mag"], context
+        f_hz = data["f_hz"]
+        mag = data["mag"]
+        context = OverlayContext.from_arrays(f_hz, **overlays) if overlays else None
+        return f_hz, mag, context
 
 
 def main(argv: list[str] | None = None) -> None:

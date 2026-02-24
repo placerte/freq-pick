@@ -13,15 +13,27 @@ uv add freq-pick
 
 ## API (primary)
 
+Picker signature (overlay input is `context` only):
+
+```python
+pick_freqs_matplotlib(spectrum, *, context: OverlayContext | None = None, ...)
+```
+
 ```python
 from pathlib import Path
 import numpy as np
 
+from freq_pick.core import OverlayContext
 from freq_pick.core import Spectrum
 from freq_pick.core import pick_freqs_matplotlib
 
 f_hz = np.linspace(0.0, 200.0, 1001)
 mag = np.sin(f_hz / 10.0) ** 2
+
+context = OverlayContext.from_arrays(
+    f_hz,
+    mean=mag,
+)
 
 spectrum = Spectrum(f_hz=f_hz, mag=mag, display_domain="linear")
 selection = pick_freqs_matplotlib(
@@ -32,6 +44,7 @@ selection = pick_freqs_matplotlib(
     title_append="[1/5]",
     artifact_dir=Path("artifacts"),
     artifact_stem="demo",
+    context=context,
 )
 
 print(selection.selected_idx)

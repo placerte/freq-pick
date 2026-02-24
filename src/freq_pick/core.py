@@ -49,6 +49,34 @@ class OverlayContext:
     p10: np.ndarray | None = None
     p90: np.ndarray | None = None
 
+    @classmethod
+    def from_arrays(
+        cls,
+        f_ref: np.ndarray,
+        *,
+        mean: np.ndarray | None = None,
+        median: np.ndarray | None = None,
+        p25: np.ndarray | None = None,
+        p75: np.ndarray | None = None,
+        p10: np.ndarray | None = None,
+        p90: np.ndarray | None = None,
+    ) -> "OverlayContext":
+        if not isinstance(f_ref, np.ndarray):
+            raise ValueError("f_ref must be a numpy.ndarray.")
+        if f_ref.ndim != 1:
+            raise ValueError("f_ref must be a 1D array.")
+
+        context = cls(
+            mean=mean,
+            median=median,
+            p25=p25,
+            p75=p75,
+            p10=p10,
+            p90=p90,
+        )
+        validate_context(f_ref, context)
+        return context
+
     def has_any(self) -> bool:
         return any(
             value is not None
@@ -148,7 +176,14 @@ def validate_spectrum(spectrum: Spectrum) -> None:
 
 def validate_context(f_hz: np.ndarray, context: OverlayContext | None) -> None:
     """Validate optional context overlays against f_hz."""
-    if context is None or not context.has_any():
+    if context is None:
+        return
+    if not context.has_any():
+        warnings.warn(
+            "OverlayContext provided but no overlay arrays were set.",
+            UserWarning,
+            stacklevel=2,
+        )
         return
 
     def check_array(name: str, arr: np.ndarray | None) -> None:
@@ -160,7 +195,7 @@ def validate_context(f_hz: np.ndarray, context: OverlayContext | None) -> None:
             raise ValueError(f"{name} must be a 1D array.")
         if arr.size != f_hz.size:
             raise ValueError(
-                f"{name} must be the same length as f_hz ({arr.size} vs {f_hz.size})."
+                f"{name} length must match f_hz length (expected {f_hz.size}, got {arr.size})."
             )
 
     check_array("mean", context.mean)
